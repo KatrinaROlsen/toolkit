@@ -1,0 +1,220 @@
+# Katrina Olsen
+# Assignment 6
+
+library(tidyverse)
+library(ggplot2)
+library(patchwork)
+library(cowplot)
+
+
+# Make 10 plots overall.
+# 9 plots should visualize the data from the two in-class experiments: 
+# 3 plots for the Moses illusion data (line, point, and bar), 
+moses <- read_csv("moses_clean.csv")
+questions <- read_csv('questions.csv')
+
+moses.processed <-
+  moses |> 
+  inner_join(questions, by=c("ITEM", "CONDITION", "LIST")) |>
+  select(ID, ITEM, CONDITION, QUESTION, ANSWER, CORRECT_ANSWER) |>
+  mutate(ACCURATE = ifelse(CORRECT_ANSWER == ANSWER,
+                           yes = "Correct",
+                           no = ifelse(ANSWER == "dont_know",
+                                       yes = "Don't Know",
+                                       no = "Incorrect")),
+         CONDITION = case_when(CONDITION == '1' ~ 'Illusion',
+                               CONDITION == '2' ~ 'No Illusion',
+                               CONDITION == '100' ~ 'Good Filler',
+                               CONDITION == '101' ~ 'Bad Filler'))  
+
+# 1. Count of answer types across conditions
+a1 <- moses.processed |>
+  filter(CONDITION %in% c('Illusion', 'No Illusion')) |>
+  group_by(CONDITION, ACCURATE) |>
+  summarise(Count = n()) |>
+  ggplot() +
+  aes(x = ACCURATE, y = Count, fill = CONDITION) +
+  geom_bar(stat='identity', position = "dodge") +
+  scale_fill_hue(direction = 1) +
+  labs(
+    x = "Type of Answers",
+    y = "Counts",
+    title = "Moses Illusion Effect on Answer Type Counts",
+    fill = "Question Type",
+  ) +
+  scale_fill_manual(values=c('#8F15E1','#4C0B77'))+
+  theme_minimal()
+
+# 2. Answer Type Percentages Per Question when illusion present
+a2 <- moses.processed |>
+  filter(CONDITION %in% c('Illusion')) |>
+  group_by(ITEM, ACCURATE) |>
+  summarise(Count = n()) |>
+  ggplot() +
+  aes(x = ITEM, y = Count, color=ACCURATE) +
+  geom_line() +
+  scale_fill_hue(direction = 1) +
+  labs(
+    x = "Question Number",
+    y = "Percentage",
+    title = "Answer Type Percentages per Illusion Question",
+    color = "Answer Type",
+  ) +
+  theme_minimal()
+
+
+# 3. Numeric Answers Submitted per Question ID
+a3 <- moses.processed |>
+  mutate(NUM_ANSWER = as.numeric(ANSWER)) |>
+  mutate(ITEM_Label = as.character(ITEM)) |>
+  na.omit() |>
+  ggplot() +
+  aes(x = ITEM_Label, y = NUM_ANSWER, colour = ACCURATE) +
+  geom_point(shape = "circle", size = 1.5) +
+  scale_fill_hue(direction = 1) +
+  labs(
+    x = "Question IDs",
+    y = "Submitted Numeric Answers",
+    title = "Numeric Answers Submitted per Question ID",
+    color = "Answer Types",
+  ) +
+  scale_color_manual(values=c('black','grey'))+
+  theme_minimal()
+
+
+##### 3 plots for the noisy channel reading time data (line, point, and bar) ######
+noisy_rt <- read_csv("noisy_rt.csv")
+
+# 1. Plausibility Effect on Mean Reading Time per IA of Sentence
+
+b1 <- noisy_rt |>
+  group_by(IA, CONDITION) |>
+  summarise(Mean = mean(RT)) |>
+  ggplot() +
+  aes(x = IA, y = Mean, fill = CONDITION) +
+  geom_bar(position="dodge", stat="identity") +
+  scale_fill_hue(direction = 1) +
+  labs(
+    x = "IA of Sentence",
+    y = "Mean Reading Time",
+    title = "Plausability Effect on IA's Mean Reading Time",
+    fill = "Sentence Type",
+  ) +
+  theme_minimal()
+
+# 2. Plausibility Effect on Mean Reading Time across Sentences
+
+b2 <- noisy_rt |>
+  group_by(ITEM, CONDITION) |>
+  summarise(Mean = mean(RT)) |>
+  ggplot() +
+  aes(x = ITEM, y = Mean, color = CONDITION) +
+  geom_line() +
+  scale_fill_hue(direction = 1) +
+  labs(
+    x = "Sentence ID #",
+    y = "Mean Reading Time",
+    title = "Plausibility Effect on Sentence Reading Time",
+    color = "Sentence Type",
+  ) +
+  theme_minimal()
+
+# 3. Reading Time per IA Type across Sentence Lengths
+
+b3 <- noisy_rt |>
+  mutate(IA_Type = as.character(IA)) |>
+  mutate(SEN_LEN = nchar(SENTENCE)) |>
+  filter(CONDITION == 'implausible') |>
+  ggplot() +
+  aes(x = SEN_LEN, y = RT, colour = IA_Type) +
+  geom_point(shape = "circle", size = 1.5) +  
+  scale_fill_hue(direction = 1) +
+  labs(
+    x = "Length of Sentence",
+    y = "Reading Time",
+    title = "IA Reading Time Across Sentence Lengths",
+    color = "IA Type",
+  ) +
+  scale_color_manual(values=c('#236648','#34996C', '#45CC8F', '#4EE5A1'))+
+  theme_minimal()
+
+# 3 plots for the noisy channel acceptability rating data (line, point, and bar).
+noisy_aj <- read_csv("noisy_aj.csv")
+
+# 1. Plausibility Effect on Mean Acceptability of Sentences
+
+c1 <- noisy_aj |>
+  group_by(ID, CONDITION) |>
+  summarise(Av_Acceptibility = mean(RATING)) |>
+  ggplot() +
+  aes(x = ID, y = Av_Acceptibility, colour = CONDITION) +
+  geom_point(shape = "circle", size = 1.5) +  
+  scale_fill_hue(direction = 1) +
+  labs(
+    x = "Users",
+    y = "Mean Acceptability",
+    color = 'Sentence Type',
+    title = "Plausibility's Mean Acceptability per User",
+  ) +
+  theme_minimal() +
+  theme(axis.text.x=element_blank(), axis.ticks.x=element_blank())
+
+# 2. Plausibility Effect on Acceptability Rating per Sentence
+
+c2 <- noisy_aj |>
+  group_by(ITEM, CONDITION) |>
+  summarise(Mean = mean(RATING)) |>
+  ggplot() +
+  aes(x = ITEM, y = Mean, color = CONDITION) +
+  geom_line() +
+  scale_fill_hue(direction = 1) +
+  labs(
+    x = "Sentence ID #",
+    y = "Mean Acceptability Rating",
+    title = "Plausibility Effect on Acceptability Rating",
+    color = "Sentence Type",
+  ) +
+  theme_minimal()
+
+# 3. Plausibility Effect on Acceptability Rating
+
+c3 <- noisy_aj |>
+  group_by(CONDITION) |>
+  summarise(Mean = mean(RATING)) |>
+  ggplot() +
+  aes(x = CONDITION, y = Mean) +
+  geom_bar(position="dodge", stat="identity", fill='black') +
+  scale_fill_hue(direction = 1) +
+  labs(
+    x = "Sentence Type",
+    y = "Mean Acceptability Rating",
+    title = "Plausibility Effect on Acceptability Rating",
+  ) +
+  theme_minimal()
+
+# The last plot can be based on any dataset you want and be in any shape you want. 
+# It has to be ugly, unreadable, and violate as many WCOG guidelines as it can. The top 3 ugliest plots win a prize!
+
+d <- noisy_aj |>
+  inner_join(noisy_rt, by=c("ID", "ITEM", "CONDITION")) |>
+  ggplot() +
+  aes(x = ID, fill = RATING, colour = SENTENCE, weight = ITEM) +
+  geom_bar() +
+  scale_fill_gradient() +
+  scale_color_hue(direction = 1) +
+  coord_polar() +
+  theme(axis.line=element_blank(),axis.text.x=element_blank(),
+        axis.text.y=element_blank(),axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),legend.position="none",
+        panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),plot.background=element_blank())
+
+# I found the way to remove all labeling from this stack overflow post:
+#   https://stackoverflow.com/questions/6528180/ggplot2-plot-without-axes-legends-etc
+
+plots <-  (a1 | a2 | a3) / (b1 | b2 | b3) / (c1 | c2 | c3 | d) + plot_layout(nrow = 3)
+# Keep all legends together and add annotations
+plots + plot_layout(guides = 'collect') + plot_annotation(tag_levels = 'A')
+
+

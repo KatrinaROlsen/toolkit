@@ -1,0 +1,165 @@
+---
+title: "Assignment 7"
+author: "Katrina Olsen"
+format: html
+editor: visual
+---
+
+# Moses Illusions
+
+Moses illusions are cases where a speaker answers a question using common knowledge, even though the question itself is nonsensical and merely similar to a common question.
+
+## Moses Illusion Example
+
+**Common Knowledge Question:** "How many of each animal did *Noah* take on the arc?"\
+**Correct Answer:** 2
+
+**Moses Illusion Question:** "How many of each animal did *Moses* take on the arc?"\
+**Moses Illusion Answer:** 2\
+**Correct Answer:** "can't answer" / "NA" / etc.
+
+## Data
+
+Answers to Moses Illusion Questions and normal, control questions were collected.
+
+### Answer Labels
+
+-   Correct
+-   Incorrect
+-   Don't Know
+
+### Examples
+
+Examples for various answers and their labels, given the question type, are as follows:
+
+| Question Type  | Question                                          | Answer       | Answer Label |
+|----------------|---------------------------------------------------|--------------|--------------|
+| No Illusion    | How many of each animal did Noah take on the arc? | 2            | Correct      |
+| No Illusion    | How many of each animal did Noah take on the arc? | 1            | Incorrect    |
+| Moses Illusion | How many of each animal did Noah take on the arc? | can't answer | Correct      |
+| Moses Illusion | How many of each animal did Noah take on the arc? | 2            | Incorrect    |
+
+: Table of Examples {#tbl-example}
+
+And then any answers like "don't know" or "idk" get labeled as "Don't Know", no matter the question type.
+
+# Data and Visualization
+
+## Loading Data
+
+Below you can see the packages and data we use for analysis.
+
+```{r Loading packages and data}
+#| warning: false
+
+library(ggplot2)
+library(tidyverse)
+
+moses <- read_csv("moses_clean.csv")
+questions <- read_csv('questions.csv')
+
+```
+
+```{r Loading data}
+#| echo: false
+
+moses.processed <-
+  moses |> 
+  inner_join(questions, by=c("ITEM", "CONDITION", "LIST")) |>
+  select(ID, ITEM, CONDITION, QUESTION, ANSWER, CORRECT_ANSWER) |>
+  mutate(ACCURATE = ifelse(CORRECT_ANSWER == ANSWER,
+                           yes = "Correct",
+                           no = ifelse(ANSWER == "dont_know",
+                                       yes = "Don't Know",
+                                       no = "Incorrect")),
+         CONDITION = case_when(CONDITION == '1' ~ 'Illusion',
+                               CONDITION == '2' ~ 'No Illusion',
+                               CONDITION == '100' ~ 'Good Filler',
+                               CONDITION == '101' ~ 'Bad Filler'))  
+```
+
+After some data manipulation, each question's answer is given an label from the [Answer Labels] described above. The method for labeling answer types based off the question type is performed as shown in @tbl-example.
+
+## Data Visualization
+
+```{r}
+#| echo: false
+#| warning: false
+#| label: fig-bar
+
+moses.processed |>
+  filter(CONDITION %in% c('Illusion', 'No Illusion')) |>
+  group_by(CONDITION, ACCURATE) |>
+  summarise(Count = n()) |>
+  ggplot() +
+  aes(x = ACCURATE, y = Count, fill = CONDITION) +
+  geom_bar(stat='identity', position = "dodge") +
+  scale_fill_hue(direction = 1) +
+  labs(
+    x = "Type of Answers",
+    y = "Counts",
+    title = "Moses Illusion Effect on Answer Type Counts",
+    fill = "Question Type",
+  ) +
+  theme_minimal()
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| label: fig-line
+
+moses.processed |>
+  filter(CONDITION %in% c('Illusion')) |>
+  group_by(ITEM, ACCURATE) |>
+  summarise(Count = n()) |>
+  ggplot() +
+  aes(x = ITEM, y = Count, color=ACCURATE) +
+  geom_line() +
+  scale_fill_hue(direction = 1) +
+  labs(
+    x = "Question Number",
+    y = "Percentage",
+    title = "Answer Type Percentages per Moses Illusion Question",
+    color = "Answer Type",
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| label: fig-dots
+
+
+moses.processed |>
+  mutate(NUM_ANSWER = as.numeric(ANSWER)) |>
+  mutate(ITEM_Label = as.character(ITEM)) |>
+  na.omit() |>
+  ggplot() +
+  aes(x = ITEM_Label, y = NUM_ANSWER, colour = ACCURATE) +
+  geom_point(shape = "circle", size = 1.5) +
+  scale_fill_hue(direction = 1) +
+  labs(
+    x = "Question IDs",
+    y = "Submitted Numeric Answers",
+    title = "Numeric Answers Submitted per Question ID",
+    color = "Answer Types",
+  ) +
+  scale_color_manual(values=c('black','grey'))+
+  theme_minimal()
+
+```
+
+------------------------------------------------------------------------
+
+## Findings
+
+As you can see, @fig-bar is particularly insightful for how the presence of an illusion in a question affects the count of incorrect answers.
+
+### Meta information
+
+```{r}
+sessionInfo()
+```
