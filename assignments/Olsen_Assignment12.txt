@@ -1,0 +1,2 @@
+I got stuck on Level 6 -> level 7. I couldn't find any file with the right ownership and size. 
+I tried things like: ls -alR /home/ | grep "bandit7 bandit6 33" 
